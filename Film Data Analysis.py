@@ -78,8 +78,8 @@ c = df.copy()
 b = df_name.copy()
 
 ###Able to run, but extremely slow for large data, need different method
-#may import the knownForTitles data
-start = time.time()
+#Try to deal with this process by using the postgresql database
+'''start = time.time()
 for i in range(0, 100):
     a = c[c['directors'].str.contains(b.loc[i, 'nconst'])]
     b.loc[i, 'numFilms'] = len(a)
@@ -94,7 +94,7 @@ for i in range(0, 100):
     else:
         b.loc[i, 'film'] = np.nan
 end = time.time()
-print(end - start)
+print(end - start)'''
 
 #Glimps of the data
 sns.boxplot(df['numVotes'])
