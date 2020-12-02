@@ -1,8 +1,11 @@
+#clear the environment
+globals().clear()
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import time
+import psycopg2
 #import from dataset
 pd.set_option('display.max_columns', 20)
 def import_raw_file():
@@ -49,30 +52,37 @@ df = df.merge(df_rating, how = 'left', left_on='tconst', right_on = 'tconst')
 #Drop no-rating movies
 df.dropna(subset = ['averageRating'],inplace = True)
 
+#Deal with dirctors' names in df
+#df.at[] to add list into df
+df.drop(columns=['titleId','language','isOriginalTitle','titleType'], inplace=True)
+df.reset_index(inplace=True)
+df.drop(columns='index', inplace = True)
+df.replace(to_replace = r'\N', value = np.nan, inplace = True)
+df_name.reset_index(inplace=True)
+df_name.drop(columns = 'index', inplace = True)
+df_name.replace(to_replace = r'\N', value = np.nan, inplace = True)
+
+
 #Save the temporary data as csv
 def tempfilesave():
-    df.to_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/Data_temp')
-    df_name.to_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/name_temp')
-    pd.DataFrame(unique_dirct).to_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/List_temp')
+    df.to_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/Data_temp.csv')
+    df_name.to_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/name_temp.csv')
+    #pd.DataFrame(unique_dirct).to_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/List_temp.csv')
 tempfilesave()
 
 #Easily to read next time
 def tempfileread():
-    df = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/Data_temp',
+    df = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/Data_temp.csv',
                      index_col = 0,low_memory=False)
-    df_name = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/name_temp',
+    df_name = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/name_temp.csv',
                           index_col = 0)
     dflist = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/List_temp')
     return df, df_name
 df, df_name = tempfileread()
 
 
-#Deal with dirctors' names in df
-#df.at[] to add list into df
-df.drop(columns=['tconst','isOriginalTitle','titleType'], inplace=True)
-df.reset_index(inplace=True)
-df_name.reset_index(inplace=True)
-df_name.drop(columns = 'index', inplace = True)
+df['region'] = df['region'].astype('category')
+
 
 c = df.copy()
 b = df_name.copy()
@@ -102,3 +112,51 @@ df['numVotes'].describe()
 #The numVotes is heavily tailed, most movies only has less than 300 people to vote
 np.corrcoef(df['numVotes'], df['averageRating'])
 sns.scatterplot(x = 'numVotes', y = 'averageRating', data=df)
+
+con = psycopg2.connect(
+    #user name
+)
+#create a cursor
+cur = conn.cursor()
+#execute a query
+cur.execute('SELECT title, directors FROM data')
+row = cur.fetch
+
+#commit the changes
+con.commit
+#close the cursor
+cur.close()
+#close the connection
+con.close
+'''DROP TABLE PUBLIC.name;
+CREATE TABLE PUBLIC.name(
+	index int,
+	nconst varchar,
+	primaryName varchar,
+	birthYear float8,
+	deathYear float8
+);
+SELECT * FROM name;
+COPY PUBLIC.name FROM '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/name_temp.csv' 
+WITH CSV HEADER DELIMITER ',';
+
+DROP TABLE data;
+CREATE TABLE PUBLIC.data(
+	index int,
+	title varchar,
+	region varchar,
+	tconst varchar,
+	startYear float8,
+	runtimeMinutes float8,
+	genres varchar,
+	directors varchar,
+    averageRating float8,
+	numVotes float8
+);
+SELECT * FROM data;
+
+COPY PUBLIC.data FROM '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/Data_temp.csv' 
+WITH CSV HEADER DELIMITER ',';
+
+
+'''
