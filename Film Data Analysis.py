@@ -63,9 +63,35 @@ df_name.drop(columns = 'index', inplace = True)
 df_name.replace(to_replace = r'\N', value = np.nan, inplace = True)
 
 
+df = df[df['directors'].notna()]
+len = df['directors'].apply(lambda row: len(row))
+#df['region'] = df['region'].astype('category')
+
+b['numFilms'] = 0
+df_1 = df.copy()
+df_1 = df_1[len<10]
+df_2 = df.copy()[len>9]
+df_2.reset_index(inplace=True)
+df_2.drop(columns = 'index', inplace = True)
+
+df_2_2 = pd.DataFrame()
+for i in df_2.index:
+    temp = df_2.loc[i, 'directors'].split(',')
+    for j in temp:
+        temp2 = df_2.loc[i,:].copy()
+        temp2['directors'] = j
+        df_2_2 = df_2_2.append(temp2, ignore_index=True)
+        #df_2_2.loc[-1, 'directors'] = j
+df_sqlimport = df_2_2.append(df_1, ignore_index=True)
+columnsTitles = ['title', 'region', 'tconst', 'startYear', 'runtimeMinutes', 'genres',
+       'directors', 'averageRating', 'numVotes']
+
+df_sqlimport = df_sqlimport.reindex(columns=columnsTitles)
+
 #Save the temporary data as csv
 def tempfilesave():
     df.to_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/Data_temp.csv')
+    df_sqlimport.to_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/Data_sql.csv')
     df_name.to_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/name_temp.csv')
     #pd.DataFrame(unique_dirct).to_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/List_temp.csv')
 tempfilesave()
@@ -79,32 +105,6 @@ def tempfileread():
     dflist = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/List_temp')
     return df, df_name
 df, df_name = tempfileread()
-
-
-df['region'] = df['region'].astype('category')
-
-
-c = df.copy()
-b = df_name.copy()
-
-###Able to run, but extremely slow for large data, need different method
-#Try to deal with this process by using the postgresql database
-'''start = time.time()
-for i in range(0, 100):
-    a = c[c['directors'].str.contains(b.loc[i, 'nconst'])]
-    b.loc[i, 'numFilms'] = len(a)
-    if len(a) > 1:
-        temp = ''
-        for j in a['titleId']:
-            temp  += ',' + j
-        temp = temp[1:]
-        b.loc[i, 'film'] = temp
-    elif len(a) == 1:
-        b.loc[i, 'film'] = a['titleId'].values[0]
-    else:
-        b.loc[i, 'film'] = np.nan
-end = time.time()
-print(end - start)'''
 
 #Glimps of the data
 sns.boxplot(df['numVotes'])
@@ -128,7 +128,8 @@ con.commit
 cur.close()
 #close the connection
 con.close
-'''DROP TABLE PUBLIC.name;
+'''
+DROP TABLE PUBLIC.name;
 CREATE TABLE PUBLIC.name(
 	index int,
 	nconst varchar,
@@ -136,9 +137,10 @@ CREATE TABLE PUBLIC.name(
 	birthYear float8,
 	deathYear float8
 );
-SELECT * FROM name;
 COPY PUBLIC.name FROM '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/name_temp.csv' 
 WITH CSV HEADER DELIMITER ',';
+ALTER TABLE name
+DROP COLUMN index;
 
 DROP TABLE data;
 CREATE TABLE PUBLIC.data(
@@ -153,10 +155,38 @@ CREATE TABLE PUBLIC.data(
     averageRating float8,
 	numVotes float8
 );
-SELECT * FROM data;
-
 COPY PUBLIC.data FROM '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/Data_temp.csv' 
 WITH CSV HEADER DELIMITER ',';
+ALTER TABLE data
+DROP COLUMN index
 
+/*DROP TABLE data;*/
+CREATE TABLE PUBLIC.data2(
+	index int,
+	title varchar,
+	region varchar,
+	tconst varchar,
+	startYear float8,
+	runtimeMinutes float8,
+	genres varchar,
+	directors varchar,
+    averageRating float8,
+	numVotes float8
+);
+COPY PUBLIC.data2 FROM '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/Data_sql.csv' 
+WITH CSV HEADER DELIMITER ',';
+ALTER TABLE data2
+DROP COLUMN index
 
+SELECT * FROM name;
+SELECT * FROM data;
+
+CREATE TABLE data_exp AS
+SELECT COUNT(tconst) number, SUM(startyear) startyear, SUM(runtimeminutes) runtimeminutes,
+directors, SUM(averagerating) averagerating, SUM(numvotes) numvotes
+FROM data2
+GROUP BY directors;
+SELECT * FROM data_exp;
+
+SELECT startyear/
 '''
