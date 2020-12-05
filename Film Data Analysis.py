@@ -6,8 +6,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import time
 import psycopg2
-#import from dataset
+from tqdm import tqdm
 pd.set_option('display.max_columns', 20)
+pd.set_option('precision',2)
+
+
 def import_raw_file():
     df_name = pd.read_csv('/Volumes/未命名/学习/imdb Dataset/name.basics.tsv', sep = '\t',
                         usecols = ['nconst', 'primaryName','birthYear','deathYear'],
@@ -102,9 +105,33 @@ def tempfileread():
                      index_col = 0,low_memory=False)
     df_name = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/name_temp.csv',
                           index_col = 0)
+    df_total = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/SQL_exp.csv',
+                          index_col = 0)
+    df_sqlimport = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/Data_sql.csv',
+                          index_col = 0)
     dflist = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/List_temp')
-    return df, df_name
-df, df_name = tempfileread()
+    return df, df_name, df_total, df_sqlimport, dflist
+df_total = tempfileread()[2]
+#Analysis Part
+#Overal view
+df_total['age'] = df_total['deathyear'] - df_total['birthyear']
+df_total.describe()
+#One data might be wrong
+a = float(df_total[df_total['age']<0]['birthyear'].copy())
+b = float(df_total[df_total['age']<0]['deathyear'].copy())
+c = df_total[df_total['age']<0].index
+df_total.loc[c, 'birthyear'] = b
+df_total.loc[c, 'deathyear'] = a
+df_total['age'] = df_total['deathyear'] - df_total['birthyear']
+df_total.describe()
+
+df_total['averagerating'].hist()
+df_total['numberall'].hist()
+plt.scatter(df_total['startyear'], df_total['age'])
+
+#Which age does the director most often produce film
+df_total['produceage'] = df_total['startyear'] - df_total['birthyear']
+df_total['produceage'].hist()
 
 #Glimps of the data
 sns.boxplot(df['numVotes'])
