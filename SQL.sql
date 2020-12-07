@@ -100,43 +100,75 @@ FROM data2;
 /*Derived from DATA, same statistics data*/
 
 /*Table to analyze relation between production and year*/
-DROP TABLE yearanalysis;
-CREATE TABLE yearanalysis AS
+CREATE TABLE yeartem AS
 SELECT directors,
-ROUND(CAST(AVG(startyear) AS NUMERIC),0) startyear,
+ROUND(CAST(AVG(startyear) AS NUMERIC),0) startyearavg,
 MIN(startyear) startyearmin,
 MAX(startyear) startyearmax,
 MAX(averagerating) toprate,
 SUM(numvotes) numvotes
 FROM data2
 GROUP BY directors;
-SELECT * FROM yearanalysis;
+SELECT * FROM yeartem;
 
-DROP TABLE tem;
-CREATE TABLE tem AS
-SELECT directors,
-count(startyear)
-FROM data2
-WHERE averagerating IN (
-	SELECT toprate FROM yearanalysis)
-GROUP BY directors;
+/*Toprated film year*/
+DROP TABLE yearanalysis;
+CREATE TABLE yearanalysis AS
+SELECT *
+FROM
+	/*Merge name.birthyear and to yeartem*/
+((
+	SELECT
+		directors tempnamea1,
+		birthyear
+	FROM
+		name
+		RIGHT JOIN yeartem
+		ON yeartem.directors = name.nconst)a
+INNER JOIN
+ 	/*Find the toprated film's startyear(s) and # of toprated film*/
+(
+	SELECT
+		*
+	FROM
+		yeartem
+	LEFT JOIN(
+		SELECT
+			directors tempnameb1,
+			MIN(startyear) topyearmin,
+			MAX(startyear) topyearmax,
+			ROUND(CAST(AVG(startyear) AS NUMERIC),0)  topyearavg,
+			COUNT(tconst)
+		FROM
+			(SELECT
+				directors,
+				averagerating,
+				startyear,
+				tconst
+			 FROM data2
+			 INNER JOIN(
+				SELECT
+					directors tempnameb2, toprate
+				FROM
+					yeartem
+			)maxrate
+			ON maxrate.toprate = data2.averagerating
+			AND maxrate.tempnameb2 = data2.directors
+			ORDER BY data2.directors)temptable
+			GROUP BY directors
+			ORDER BY directors)temptable
+	ON temptable.tempnameb1 = yeartem.directors)b
+ON b.directors = a.tempnamea1)
+ORDER BY directors;
 
-select directors,
-startyear,
-averagerating
-from
-(select directors,count(0) num,max(averagerating) toprate from data2 group by directors) b;
-select * from tem
-where directors='nm0000005';
+ALTER TABLE yearanalysis
+DROP COLUMN tempnamea1,
+DROP COLUMN tempnameb1;
 
-select * from data2
-where directors='nm0000005';
+DROP TABLE IF EXISTS
+	yeartem;
 
-DROP TABLE data_total;
-CREATE TABLE data_total AS
-SELECT * FROM data_exp
-JOIN name ON (data_exp.directors = name.nconst)
-SELECT * FROM data_total;
+
 
 /*export for further analysis*/
 COPY data_total TO '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/SQL_exp.csv' DELIMITER ',' csv HEADER;

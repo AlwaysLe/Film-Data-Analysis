@@ -111,19 +111,9 @@ def tempfileread():
                           index_col = 0)
     dflist = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/List_temp')
     return df, df_name, df_total, df_sqlimport, dflist
-df_total = tempfileread()[2]
-#Analysis Part
-#Overal view
-df_total['age'] = df_total['deathyear'] - df_total['birthyear']
-df_total.describe()
-#One data might be wrong
-a = float(df_total[df_total['age']<0]['birthyear'].copy())
-b = float(df_total[df_total['age']<0]['deathyear'].copy())
-c = df_total[df_total['age']<0].index
-df_total.loc[c, 'birthyear'] = b
-df_total.loc[c, 'deathyear'] = a
-df_total['age'] = df_total['deathyear'] - df_total['birthyear']
-df_total.describe()
+yearanalysis = tempfileread()[2]
+
+
 
 df_total['averagerating'].hist()
 df_total['numberall'].hist()
