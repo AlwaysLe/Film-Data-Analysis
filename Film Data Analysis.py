@@ -2,6 +2,7 @@
 globals().clear()
 import pandas as pd
 import numpy as np
+from   scipy import stats
 import matplotlib.pyplot as plt
 import seaborn as sns
 import time
@@ -44,6 +45,7 @@ unique_dirct = list(set(temp))
 df_name = df_name[df_name['nconst'].isin(unique_dirct)]
 #Deal with Duplication in the df_akas
 df_basics = df_basics[df_basics['titleType']=='movie']
+
 duplicate = df_akas[df_akas['titleId'].duplicated(keep = False)]
 duplicate['isOriginalTitle'].value_counts()
 temp = duplicate[duplicate['isOriginalTitle'].isin(['0',r'\N'])]
@@ -68,9 +70,7 @@ df_name.replace(to_replace = r'\N', value = np.nan, inplace = True)
 
 df = df[df['directors'].notna()]
 len = df['directors'].apply(lambda row: len(row))
-#df['region'] = df['region'].astype('category')
 
-b['numFilms'] = 0
 df_1 = df.copy()
 df_1 = df_1[len<10]
 df_2 = df.copy()[len>9]
@@ -78,7 +78,7 @@ df_2.reset_index(inplace=True)
 df_2.drop(columns = 'index', inplace = True)
 
 df_2_2 = pd.DataFrame()
-for i in df_2.index:
+for i in tqdm(df_2.index):
     temp = df_2.loc[i, 'directors'].split(',')
     for j in temp:
         temp2 = df_2.loc[i,:].copy()
@@ -101,27 +101,52 @@ tempfilesave()
 
 #Easily to read next time
 def tempfileread():
-    df = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/Data_temp.csv',
+    df = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/SQL_data.csv',
                      index_col = 0,low_memory=False)
-    df_name = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/name_temp.csv',
+    df_name = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/SQL_name.csv',
                           index_col = 0)
-    df_total = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/SQL_exp.csv',
+    #Depend on specific which table to analyze
+    df_flexible = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/SQL_exp.csv',
                           index_col = 0)
-    df_sqlimport = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/Data_sql.csv',
+    summary = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/SQL_summary.csv',
                           index_col = 0)
     dflist = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/List_temp')
-    return df, df_name, df_total, df_sqlimport, dflist
-yearanalysis = tempfileread()[2]
+    return df, df_name, df_flexible, summary, dflist
+
+df1 = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/Data_temp.csv',
+                 index_col = 0,low_memory=False)
+df      = tempfileread()[0].sort_index()
+df_name = tempfileread()[1].sort_index()
+year_a  = tempfileread()[2].sort_index()
+summary = tempfileread()[3].sort_index()
 
 
+#Overview of the all directors' data
+summary['numberall'].describe()
+df[['runtimeminutes', 'averagerating', 'numvotes']].describe()
 
+print('Percentil of direct 1 film: ' +'{}'.format(stats.percentileofscore(summary['numberall'].to_list(),2)))
+print('Percentil of direct 5 film: ' +'{}'.format(stats.percentileofscore(summary['numberall'].to_list(),5)))
+print('The longest film is ' + '{}'.format(df['runtimeminutes'].max()) + ', number votes ' +
+      '{}'.format(df['numvotes'][df['runtimeminutes'] == df['runtimeminutes'].max()].iloc[0]))
+print('Percentage of lower than 100 votes ' +'{}'.format(stats.percentileofscore(df['numvotes'].to_list(),100)))
+
+summary1 = summary.groupby('')
+
+b = range(1,10)
+a = list(range(1,10))
+for i in b:
+    a[i-1] = stats.percentileofscore(summary['numberall'].to_list(),i)
+plt.plot(b,a)
+
+summary['numberall'].hist()
 df_total['averagerating'].hist()
-df_total['numberall'].hist()
 plt.scatter(df_total['startyear'], df_total['age'])
 
 #Which age does the director most often produce film
-df_total['produceage'] = df_total['startyear'] - df_total['birthyear']
-df_total['produceage'].hist()
+year_a
+year_a['startyearlen'][year_a['count']>1].describe()
+year_a['startyearlen'][year_a['count']>1].hist()
 
 #Glimps of the data
 sns.boxplot(df['numVotes'])
@@ -145,65 +170,3 @@ con.commit
 cur.close()
 #close the connection
 con.close
-'''
-DROP TABLE PUBLIC.name;
-CREATE TABLE PUBLIC.name(
-	index int,
-	nconst varchar,
-	primaryName varchar,
-	birthYear float8,
-	deathYear float8
-);
-COPY PUBLIC.name FROM '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/name_temp.csv' 
-WITH CSV HEADER DELIMITER ',';
-ALTER TABLE name
-DROP COLUMN index;
-
-DROP TABLE data;
-CREATE TABLE PUBLIC.data(
-	index int,
-	title varchar,
-	region varchar,
-	tconst varchar,
-	startYear float8,
-	runtimeMinutes float8,
-	genres varchar,
-	directors varchar,
-    averageRating float8,
-	numVotes float8
-);
-COPY PUBLIC.data FROM '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/Data_temp.csv' 
-WITH CSV HEADER DELIMITER ',';
-ALTER TABLE data
-DROP COLUMN index
-
-/*DROP TABLE data;*/
-CREATE TABLE PUBLIC.data2(
-	index int,
-	title varchar,
-	region varchar,
-	tconst varchar,
-	startYear float8,
-	runtimeMinutes float8,
-	genres varchar,
-	directors varchar,
-    averageRating float8,
-	numVotes float8
-);
-COPY PUBLIC.data2 FROM '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/Data_sql.csv' 
-WITH CSV HEADER DELIMITER ',';
-ALTER TABLE data2
-DROP COLUMN index
-
-SELECT * FROM name;
-SELECT * FROM data;
-
-CREATE TABLE data_exp AS
-SELECT COUNT(tconst) number, SUM(startyear) startyear, SUM(runtimeminutes) runtimeminutes,
-directors, SUM(averagerating) averagerating, SUM(numvotes) numvotes
-FROM data2
-GROUP BY directors;
-SELECT * FROM data_exp;
-
-SELECT startyear/
-'''

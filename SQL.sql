@@ -38,11 +38,16 @@ WHERE age=-51;
 UPDATE name
 SET birthyear=1905, deathyear=1932
 WHERE age=-1905;
-
-UPDATE name SET age = name.deathyear - name.birthyear;
+ 
+UPDATE name SET
+	age = name.deathyear - name.birthyear;
+UPDATE name SET
+	age = (SELECT EXTRACT(YEAR FROM CURRENT_DATE)) - name.birthyear
+WHERE birthyear IS NOT NULL AND deathyear IS NULL;
 SELECT * FROM name
 ORDER BY nconst;
-select * from name;
+
+COPY name TO '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/SQL_name.csv' DELIMITER ',' csv HEADER;
 
 DROP TABLE data;
 CREATE TABLE PUBLIC.data(
@@ -59,8 +64,6 @@ CREATE TABLE PUBLIC.data(
 );
 COPY PUBLIC.data FROM '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/Data_temp.csv' 
 WITH CSV HEADER DELIMITER ',';
-ALTER TABLE data
-DROP COLUMN index
 
 /*Check reliability of data*/
 SELECT MIN(startyear) minyear, MAX(startyear) maxyear, AVG(startyear) avgyear, STDDEV(startyear) stdyear,
@@ -73,7 +76,7 @@ SELECT * FROM data
 WHERE runtimeminutes = 51420;
 /*Weird, but this movie does exist!*/
 
-/*DROP TABLE data;*/
+DROP TABLE data2;
 CREATE TABLE PUBLIC.data2(
 	index int,
 	title varchar,
@@ -88,8 +91,11 @@ CREATE TABLE PUBLIC.data2(
 );
 COPY PUBLIC.data2 FROM '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/Data_sql.csv' 
 WITH CSV HEADER DELIMITER ',';
-ALTER TABLE data2
-DROP COLUMN index
+/*ALTER TABLE data2
+DROP COLUMN index;*/
+
+COPY data2 TO '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/SQL_data.csv' DELIMITER ',' csv HEADER;
+
 
 /*Check reliability of data*/
 SELECT MIN(startyear) minyear, MAX(startyear) maxyear, AVG(startyear) avgyear, STDDEV(startyear) stdyear,
@@ -98,6 +104,8 @@ MIN(averagerating) minrate, MAX(averagerating) maxrate, AVG(averagerating) avgra
 MIN(numvotes) minvote, MAX(numvotes) maxvote, AVG(numvotes) avgvotes, STDDEV(numvotes) stdvote
 FROM data2;
 /*Derived from DATA, same statistics data*/
+
+select * from data2;
 
 /*Table to analyze relation between production and year*/
 CREATE TABLE yeartem AS
@@ -111,79 +119,85 @@ FROM data2
 GROUP BY directors;
 SELECT * FROM yeartem;
 
+
 /*Toprated film year*/
 DROP TABLE yearanalysis;
 CREATE TABLE yearanalysis AS
 SELECT *
-FROM
-	/*Merge name.birthyear and to yeartem*/
-((
-	SELECT
-		directors tempnamea1,
-		birthyear
-	FROM
-		name
-		RIGHT JOIN yeartem
-		ON yeartem.directors = name.nconst)a
-INNER JOIN
- 	/*Find the toprated film's startyear(s) and # of toprated film*/
-(
-	SELECT
-		*
-	FROM
-		yeartem
-	LEFT JOIN(
+FROM(	(/*Merge name.birthyear and to yeartem*/
+		SELECT
+			yeartem.*,
+			name.birthyear,
+			name.age
+		FROM
+			name
+			RIGHT JOIN yeartem
+			ON yeartem.directors = name.nconst
+		)a
+	INNER JOIN(/*The third join, find the year related info grouped by directors*/
 		SELECT
 			directors tempnameb1,
 			MIN(startyear) topyearmin,
 			MAX(startyear) topyearmax,
 			ROUND(CAST(AVG(startyear) AS NUMERIC),0)  topyearavg,
 			COUNT(tconst)
-		FROM
-			(SELECT
+		FROM(/*Secondly, find which year/film has the top rate:
+				by join with the table 'maxrate'--
+				contains multiple year with same top rate*/
+			SELECT
 				directors,
 				averagerating,
 				startyear,
 				tconst
 			 FROM data2
 			 INNER JOIN(
+				/*Firstly, call the toprate from yeartem*/
 				SELECT
 					directors tempnameb2, toprate
 				FROM
-					yeartem
-			)maxrate
+					yeartem)maxrate
 			ON maxrate.toprate = data2.averagerating
 			AND maxrate.tempnameb2 = data2.directors
 			ORDER BY data2.directors)temptable
-			GROUP BY directors
-			ORDER BY directors)temptable
-	ON temptable.tempnameb1 = yeartem.directors)b
-ON b.directors = a.tempnamea1)
+		GROUP BY directors
+		ORDER BY directors)b
+	ON b.tempnameb1 = a.directors)
 ORDER BY directors;
 
+SELECT * FROM yearanalysis;
+
 ALTER TABLE yearanalysis
-DROP COLUMN tempnamea1,
 DROP COLUMN tempnameb1;
+
+ALTER TABLE yearanalysis
+ADD COLUMN startyearlen int,
+ADD COLUMN topyearlen int,
+ADD COLUMN topagemin int,
+ADD COLUMN topagemax int;
+
+UPDATE yearanalysis
+SET
+	startyearlen = startyearmax - startyearmin,
+	topyearlen = topyearmax - topyearmin,
+	topagemin = topyearmin - birthyear,
+	topagemax = topyearmax - birthyear;
 
 DROP TABLE IF EXISTS
 	yeartem;
 
-
+COPY yearanalysis TO '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/SQL_exp.csv' DELIMITER ',' csv HEADER;
 
 /*export for further analysis*/
-COPY data_total TO '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/SQL_exp.csv' DELIMITER ',' csv HEADER;
-
-DROP TABLE data_exp;
-CREATE TABLE data_exp AS
+DROP TABLE summary;
+CREATE TABLE summary AS
 SELECT directors,
 COUNT(tconst) numberall,
-ROUND(CAST(AVG(startyear) AS NUMERIC),0) startyear,
-ROUND(CAST(MAX(startyear) AS NUMERIC),0) startyearmax,
-ROUND(CAST(MIN(startyear) AS NUMERIC),0) startyearmin,
 ROUND(CAST(AVG(runtimeminutes) AS NUMERIC),1) runtimeminutes,
 ROUND(CAST(AVG(averagerating) AS NUMERIC), 2) averagerating,
 SUM(numvotes) numvotes
 FROM data2
 GROUP BY directors;
-SELECT * FROM data_exp;
+SELECT * FROM summary;
+
+COPY summary TO '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/SQL_summary.csv' DELIMITER ',' csv HEADER;
 
