@@ -101,7 +101,7 @@ tempfilesave()
 
 #Easily to read next time
 def tempfileread():
-    df = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/SQL_data.csv',
+    df = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/Data_temp.csv',
                      index_col = 0,low_memory=False)
     df_name = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/SQL_name.csv',
                           index_col = 0)
@@ -113,8 +113,6 @@ def tempfileread():
     dflist = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/List_temp')
     return df, df_name, df_flexible, summary, dflist
 
-df1 = pd.read_csv('/Users/xintongli/PycharmProjects/Project/Film Data Analysis/Data_temp.csv',
-                 index_col = 0,low_memory=False)
 df      = tempfileread()[0].sort_index()
 df_name = tempfileread()[1].sort_index()
 year_a  = tempfileread()[2].sort_index()
@@ -131,7 +129,10 @@ print('The longest film is ' + '{}'.format(df['runtimeminutes'].max()) + ', numb
       '{}'.format(df['numvotes'][df['runtimeminutes'] == df['runtimeminutes'].max()].iloc[0]))
 print('Percentage of lower than 100 votes ' +'{}'.format(stats.percentileofscore(df['numvotes'].to_list(),100)))
 
-summary1 = summary.groupby('')
+#Director's Career Length and Rating
+print('Average career length: ' + '{}'.format(year_a['startyearlen'].mean()))
+print('Average career length with multiple piece: ' +
+      '{}'.format(year_a['startyearlen'][summary['numberall']>1].mean()))
 
 b = range(1,10)
 a = list(range(1,10))
