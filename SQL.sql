@@ -44,9 +44,13 @@ UPDATE name SET
 UPDATE name SET
 	age = (SELECT EXTRACT(YEAR FROM CURRENT_DATE)) - name.birthyear
 WHERE birthyear IS NOT NULL AND deathyear IS NULL;
-SELECT * FROM name
-ORDER BY nconst;
+DELETE FROM name
+WHERE age>110 AND deathyear IS NULL;
+DELETE FROM name
+WHERE birthyear IS NULL;
 
+
+/*There is in name data a change after yearanalysis*/
 COPY name TO '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/SQL_name.csv' DELIMITER ',' csv HEADER;
 
 DROP TABLE data;
@@ -108,17 +112,32 @@ FROM data2;
 select * from data2;
 
 /*Table to analyze relation between production and year*/
+DROP TABLE yeartem;
 CREATE TABLE yeartem AS
 SELECT directors,
 ROUND(CAST(AVG(startyear) AS NUMERIC),0) startyearavg,
 MIN(startyear) startyearmin,
 MAX(startyear) startyearmax,
 MAX(averagerating) toprate,
-SUM(numvotes) numvotes
-FROM data2
-GROUP BY directors;
-SELECT * FROM yeartem;
-
+SUM(numvotes) numvotes,
+COUNT(tconst) numberall
+FROM
+	/*Filter out the films release after the the director past away*/
+	(SELECT * FROM
+	(SELECT a.directors, a.startyear, a.averagerating, a.numvotes, a.tconst,
+	 b.age, b.birthyear,
+	 a.startyear-b.birthyear tempyear
+	 FROM data2 a
+	 INNER JOIN(
+		 SELECT nconst, age, birthyear
+		 FROM name
+	 )b
+	 on a.directors = b.nconst) c
+	 WHERE c.tempyear<c.age
+	 ORDER BY directors
+	)d
+GROUP BY directors
+ORDER BY directors;
 
 /*Toprated film year*/
 DROP TABLE yearanalysis;
@@ -182,10 +201,16 @@ SET
 	topagemin = topyearmin - birthyear,
 	topagemax = topyearmax - birthyear;
 
-DROP TABLE IF EXISTS
-	yeartem;
-
-COPY yearanalysis TO '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/SQL_exp.csv' DELIMITER ',' csv HEADER;
+/*Check reliability of data*/
+SELECT MIN(topagemin) minagemin, MAX(topagemax) maxagemax
+FROM yearanalysis;
+	 
+DELETE FROM name
+WHERE nconst =
+	(SELECT directors FROM yearanalysis
+	 WHERE topagemin<0
+	);
+COPY name TO '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/SQL_name.csv' DELIMITER ',' csv HEADER;
 
 /*export for further analysis*/
 DROP TABLE summary;
@@ -199,5 +224,15 @@ FROM data2
 GROUP BY directors;
 SELECT * FROM summary;
 
+DELETE FROM summary
+WHERE directors =
+	(SELECT directors FROM yearanalysis
+	 WHERE topagemin<0
+	);
+
+DROP TABLE IF EXISTS
+	yeartem;
+
+COPY yearanalysis TO '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/SQL_exp.csv' DELIMITER ',' csv HEADER;
 COPY summary TO '/Users/xintongli/PycharmProjects/Project/Film Data Analysis/SQL_summary.csv' DELIMITER ',' csv HEADER;
 

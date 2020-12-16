@@ -118,6 +118,7 @@ df_name = tempfileread()[1].sort_index()
 year_a  = tempfileread()[2].sort_index()
 summary = tempfileread()[3].sort_index()
 
+df.columns = df.columns.str.lower()
 
 #Overview of the all directors' data
 summary['numberall'].describe()
@@ -132,7 +133,27 @@ print('Percentage of lower than 100 votes ' +'{}'.format(stats.percentileofscore
 #Director's Career Length and Rating
 print('Average career length: ' + '{}'.format(year_a['startyearlen'].mean()))
 print('Average career length with multiple piece: ' +
-      '{}'.format(year_a['startyearlen'][summary['numberall']>1].mean()))
+      '{}'.format(year_a['startyearlen'][year_a['numberall']>1].mean()))
+
+#Director's top rated film
+fig, ax = plt.subplots()
+ax.hist(year_a['toprate'],
+        density = True, histtype = 'step', bins=20, label = 'Top Rate', color = 'Blue')
+ax.hist(summary['averagerating'],
+        density = True, alpha =0.2, bins=20, label = 'Average Rate', color = 'Blue')
+ax.set_xlabel('Rating')
+ax.set_ylabel('Density')
+plt.tight_layout()
+ax.legend(loc='upper left')
+print(('Average top rating ' + '{}'.format(year_a['toprate'].mean())))
+print(('Average rating ' + '{}'.format(summary['averagerating'].mean())))
+
+print(('Mode of top rating ' + '{}'.format(year_a['toprate'].mode()[0])))
+print(('Mode of rating ' + '{}'.format(summary['averagerating'].mode()[0])))
+
+
+
+
 
 b = range(1,10)
 a = list(range(1,10))
