@@ -151,8 +151,31 @@ print(('Average rating ' + '{}'.format(summary['averagerating'].mean())))
 print(('Mode of top rating ' + '{}'.format(year_a['toprate'].mode()[0])))
 print(('Mode of rating ' + '{}'.format(summary['averagerating'].mode()[0])))
 
+#Dirctor's Golden Age of Creation
+print('Golen Age of all film Directors\' age:')
+print(year_a[['topagemin', 'topagemax']].mean())
 
 
+print('Golen Age of multiple films Directors\' age:')
+print(year_a[['topagemin', 'topagemax']][year_a['numberall']>1].mean())
+print(year_a['topyearlen'].describe())
+
+#Dirctor's Golden Age of Creation
+#Group by Decade
+year_a['decade'] = pd.cut(year_a['startyearavg'],
+                           [year_a['startyearavg'].min()]+list(range(1950,2020,10))+[year_a['startyearavg'].max()],
+                          labels=['pre1950']+list(range(1950,2020,10)),
+                          include_lowest=True)
+#sns.boxplot(y=year_a['toprate'][year_a['numberall']>1],x=year_a['decade'][year_a['numberall']>1])
+year_a_copy = year_a.groupby(year_a['startyearavg']).agg({'toprate': np.mean,
+                                                          'count': 'sum'})
+g = sns.scatterplot(y='toprate', x=year_a_copy.index, hue='count', size='count', data=year_a_copy)
+plt.title('Top Rated Film Vs. Released Year')
+plt.xlabel('Year')
+plt.ylabel('Average Rate of the Top Rate')
+g.legend_.texts[0].set_text("")
+g.legend_.texts[0].set_text('Number of top rated films')
+g.legend.set_title( 'Number of top rated films')
 
 
 b = range(1,10)
@@ -169,6 +192,7 @@ plt.scatter(df_total['startyear'], df_total['age'])
 year_a
 year_a['startyearlen'][year_a['count']>1].describe()
 year_a['startyearlen'][year_a['count']>1].hist()
+
 
 #Glimps of the data
 sns.boxplot(df['numVotes'])
